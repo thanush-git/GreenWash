@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenWash", "GreenWash.csproj", "{35A3B3C1-221E-BD31-2958-4179C61D86EF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{35A3B3C1-221E-BD31-2958-4179C61D86EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35A3B3C1-221E-BD31-2958-4179C61D86EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35A3B3C1-221E-BD31-2958-4179C61D86EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35A3B3C1-221E-BD31-2958-4179C61D86EF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C25EE345-1470-4AB2-8B5F-110AFB36D1AF}
+	EndGlobalSection
+EndGlobal
