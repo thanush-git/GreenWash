@@ -73,7 +73,7 @@ namespace GreenWash.DAL
                 .ToListAsync();
         }
         
-        public async Task<List<Order>> GetOrdersForWasherAsync(int washerId)
+        public async Task<List<Order>> GetOrdersForWasherAsync(long washerId)
         {
             return await _context.Orders
                 .Where(o => o.WasherId == washerId)

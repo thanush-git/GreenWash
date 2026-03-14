@@ -7,7 +7,7 @@ namespace GreenWash.DTO
 {
     public class GenerateInvoice
     {
-        public int OrderId { get; set; }
+        public long OrderId { get; set; }
 
         public string AfterWashImageUrl { get; set; }
     }

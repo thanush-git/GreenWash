@@ -1,104 +1,152 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using GreenWash.DAL;
-using GreenWash.DTO;
-using GreenWash.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using GreenWash.Data;
-using GreenWash.Models;
+using GreenWash.DTO;
+using GreenWash.Exceptions;
 using GreenWash.Interfaces;
+using GreenWash.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace GreenWash.Services
 {
     public class WasherService : IWasherService
     {
         private readonly IOrderRepository _orderRepository;
+        private readonly IAdminWasherRepository _washerRepository;
+        private readonly GreenWashDbContext _context;
+        private readonly IEmailService _email;
 
-        public WasherService(IOrderRepository orderRepository)
+        public WasherService(
+            IOrderRepository orderRepository,
+            IAdminWasherRepository washerRepository,
+            GreenWashDbContext context,
+            IEmailService email)
         {
             _orderRepository = orderRepository;
+            _washerRepository = washerRepository;
+            _context = context;
+            _email = email;
         }
 
-        public async Task AcceptOrderAsync(int orderId, int washerId)
+        private async Task<(string email, string firstName)> GetCustomerContactAsync(long customerId)
         {
-            var order = await _orderRepository.GetByIdAsync(orderId);
-
-            if (order == null)
-                throw new Exception("Order not found");
-
-            if (order.Status != OrderStatus.Pending)
-                throw new Exception("Order cannot be accepted");
-
-            order.WasherId = washerId;
-            order.Status = OrderStatus.Accepted;
-
-            await _orderRepository.UpdateAsync(order);
+            var profile = await _context.CustomerProfiles
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+            if (profile == null) return ("", "Customer");
+            var user = await _context.Users.FindAsync(profile.UserId);
+            return (user?.Email ?? "", profile.FirstName);
         }
 
-        public async Task DeclineOrderAsync(int orderId, int washerId)
+        // ── Single action handler replacing accept / decline / start / complete ──
+
+        public async Task HandleOrderActionAsync(long orderId, long washerId, string action)
         {
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            var order = await _orderRepository.GetByIdAsync(orderId)
+                ?? throw new NotFoundException("Order not found");
 
-            if (order == null)
-                throw new Exception("Order not found");
+            switch (action.ToLower())
+            {
+                case "accept":
+                    if (order.Status != OrderStatus.Pending)
+                        throw new BadRequestException("Only pending orders can be accepted");
 
-            if (order.WasherId != washerId)
-                throw new Exception("Unauthorized washer");
+                    order.WasherId = washerId;
+                    order.Status = OrderStatus.Accepted;
+                    await _orderRepository.UpdateAsync(order);
 
-            if (order.Status != OrderStatus.Pending)
-                throw new Exception("Order cannot be declined");
+                    var washer = await _washerRepository.GetWasherByIdAsync(washerId);
+                    var washerName = washer != null ? $"{washer.FirstName} {washer.LastName}" : "your washer";
+                    var (acceptEmail, acceptName) = await GetCustomerContactAsync(order.CustomerId);
+                    if (!string.IsNullOrEmpty(acceptEmail))
+                    {
+                        var (s, h) = EmailTemplates.OrderAccepted(acceptName, order.OrderId, washerName, order.ServiceAddress);
+                        await _email.SendAsync(acceptEmail, acceptName, s, h);
+                    }
+                    break;
 
-            order.Status = OrderStatus.Declined;
+                case "decline":
+                    if (order.WasherId != washerId)
+                        throw new UnauthorizedException("You are not assigned to this order");
+                    if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Accepted)
+                        throw new BadRequestException("This order cannot be declined");
 
-            await _orderRepository.UpdateAsync(order);
+                    order.Status = OrderStatus.Declined;
+                    order.WasherId = null;
+                    await _orderRepository.UpdateAsync(order);
+
+                    var (declineEmail, declineName) = await GetCustomerContactAsync(order.CustomerId);
+                    if (!string.IsNullOrEmpty(declineEmail))
+                    {
+                        var (s, h) = EmailTemplates.OrderDeclined(declineName, order.OrderId);
+                        await _email.SendAsync(declineEmail, declineName, s, h);
+                    }
+                    break;
+
+                case "start":
+                    if (order.WasherId != washerId)
+                        throw new UnauthorizedException("You are not assigned to this order");
+                    if (order.Status != OrderStatus.Accepted)
+                        throw new BadRequestException("Order must be accepted before starting");
+
+                    order.Status = OrderStatus.InProgress;
+                    await _orderRepository.UpdateAsync(order);
+
+                    var (startEmail, startName) = await GetCustomerContactAsync(order.CustomerId);
+                    if (!string.IsNullOrEmpty(startEmail))
+                    {
+                        var (s, h) = EmailTemplates.WashStarted(startName, order.OrderId, order.ServiceAddress);
+                        await _email.SendAsync(startEmail, startName, s, h);
+                    }
+                    break;
+
+                case "complete":
+                    if (order.WasherId != washerId)
+                        throw new UnauthorizedException("You are not assigned to this order");
+                    if (order.Status != OrderStatus.InProgress)
+                        throw new BadRequestException("Wash has not started yet");
+
+                    order.Status = OrderStatus.Completed;
+                    await _orderRepository.UpdateAsync(order);
+
+                    var washerProfile = await _washerRepository.GetWasherByIdAsync(washerId);
+                    if (washerProfile != null)
+                    {
+                        washerProfile.TotalWashes++;
+                        await _washerRepository.UpdateWasherAsync(washerProfile);
+                    }
+
+                    var (completeEmail, completeName) = await GetCustomerContactAsync(order.CustomerId);
+                    if (!string.IsNullOrEmpty(completeEmail))
+                    {
+                        var (s, h) = EmailTemplates.WashCompleted(completeName, order.OrderId, order.TotalAmount);
+                        await _email.SendAsync(completeEmail, completeName, s, h);
+                    }
+                    break;
+
+                default:
+                    throw new BadRequestException("Invalid action. Must be one of: accept, decline, start, complete");
+            }
         }
 
-        public async Task StartWashAsync(int orderId, int washerId)
-        {
-            var order = await _orderRepository.GetByIdAsync(orderId);
-
-            if (order == null)
-                throw new Exception("Order not found");
-
-            if (order.WasherId != washerId)
-                throw new Exception("Unauthorized washer");
-
-            if (order.Status != OrderStatus.Accepted)
-                throw new Exception("Order must be accepted first");
-
-            order.Status = OrderStatus.InProgress;
-
-            await _orderRepository.UpdateAsync(order);
-        }
+        // ── GetAvailableOrdersAsync / GetWasherOrdersAsync ─────────────────────────
 
         public async Task<List<Order>> GetAvailableOrdersAsync()
+            => await _orderRepository.GetAvailableOrdersAsync();
+
+        public async Task<List<Order>> GetWasherOrdersAsync(long washerId)
+            => await _orderRepository.GetOrdersForWasherAsync(washerId);
+
+        // ── UpdateWasherAsync ──────────────────────────────────────────────────────
+
+        public async Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasher dto)
         {
-            return await _orderRepository.GetAvailableOrdersAsync();
-        }
+            var washer = await _washerRepository.GetWasherByIdAsync(washerId)
+                ?? throw new NotFoundException("Washer not found");
 
-        public async Task CompleteWashAsync(int orderId, int washerId)
-        {
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            washer.FirstName = dto.FirstName;
+            washer.LastName = dto.LastName;
+            washer.Phone = dto.Phone;
 
-            if (order == null)
-                throw new Exception("Order not found");
-
-            if (order.WasherId != washerId)
-                throw new Exception("Unauthorized washer");
-
-            if (order.Status != OrderStatus.InProgress)
-                throw new Exception("Wash has not started");
-
-            order.Status = OrderStatus.Completed;
-
-            await _orderRepository.UpdateAsync(order);
-        }
-
-        public async Task<List<Order>> GetWasherOrdersAsync(int washerId)
-        {
-            return await _orderRepository.GetOrdersForWasherAsync(washerId);
+            return await _washerRepository.UpdateWasherAsync(washer);
         }
     }
 }

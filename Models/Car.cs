@@ -16,6 +16,7 @@ namespace GreenWash.Models
         public string Color { get; set; }
         public string PlateNumber { get; set; }
         public string ImageUrl { get; set; }
+        public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

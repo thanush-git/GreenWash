@@ -19,6 +19,6 @@ namespace GreenWash.Interfaces
 
         //For Washer
         Task<List<Order>> GetAvailableOrdersAsync();
-        Task<List<Order>> GetOrdersForWasherAsync(int washerId);
+        Task<List<Order>> GetOrdersForWasherAsync(long washerId);
     }
 }

@@ -1,58 +1,61 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using GreenWash.DTO;
 using GreenWash.Interfaces;
 using GreenWash.Models;
 using GreenWash.Exceptions;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using Microsoft.IdentityModel.Tokens;
-
-public class AdminWasherService : IAdminWasherService
+namespace GreenWash.Services
 {
-    private readonly IAdminWasherRepository _repository;
-
-    public AdminWasherService(IAdminWasherRepository repository)
+    public class AdminWasherService : IAdminWasherService
     {
-        _repository = repository;
-    }
+        private readonly IAdminWasherRepository _repository;
+        private readonly IEmailService _email;
 
-    public async Task<WasherProfile> AddWasherAsync(CreateWasher dto)
-    {
-        var user = new User
+        public AdminWasherService(IAdminWasherRepository repository, IEmailService email)
         {
-            Email = dto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            Role = UserRole.Washer,
-            IsActive = true
-        };
+            _repository = repository;
+            _email = email;
+        }
 
-        var washer = new WasherProfile
+        public async Task<WasherProfile> AddWasherAsync(CreateWasher dto)
         {
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            Phone = dto.Phone
-        };
+            var user = new User
+            {
+                Email = dto.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Role = UserRole.Washer,
+                IsActive = true
+            };
 
-        return await _repository.AddWasherAsync(user, washer);
-    }
+            var washer = new WasherProfile
+            {
+                FirstName = dto.FirstName,
+                LastName = dto.LastName,
+                Phone = dto.Phone
+            };
 
-    public async Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasher dto)
-    {
-        var washer = await _repository.GetWasherByIdAsync(washerId);
+            var created = await _repository.AddWasherAsync(user, washer);
 
-        washer.FirstName = dto.FirstName;
-        washer.LastName = dto.LastName;
-        washer.Phone = dto.Phone;
+            // ── Washer welcome email with login credentials ────────────────────────
+            var (subject, html) = EmailTemplates.WasherWelcome(dto.FirstName, dto.Email, dto.Password);
+            await _email.SendAsync(dto.Email, dto.FirstName, subject, html);
 
-        return await _repository.UpdateWasherAsync(washer);
-    }
+            return created;
+        }
 
-    public async Task ToggleWasherStatusAsync(long washerId, bool isActive)
-    {
-        await _repository.UpdateStatusAsync(washerId, isActive);
+        public async Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasher dto)
+        {
+            var washer = await _repository.GetWasherByIdAsync(washerId)
+                ?? throw new NotFoundException("Washer not found");
+
+            washer.FirstName = dto.FirstName;
+            washer.LastName = dto.LastName;
+            washer.Phone = dto.Phone;
+
+            return await _repository.UpdateWasherAsync(washer);
+        }
+
+        public async Task ToggleWasherStatusAsync(long washerId, bool isActive)
+        {
+            await _repository.UpdateStatusAsync(washerId, isActive);
+        }
     }
 }

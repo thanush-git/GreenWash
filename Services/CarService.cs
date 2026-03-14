@@ -1,41 +1,36 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using GreenWash.DTO;
+using GreenWash.Exceptions;
 using GreenWash.Interfaces;
 using GreenWash.Models;
-using GreenWash.Exceptions;
 
 namespace GreenWash.Services
 {
     public class CarService : ICarService
     {
-        private readonly ICarRepository _carRepository;
+        private readonly ICarRepository      _carRepository;
         private readonly ICustomerRepository _customerRepository;
 
-        public CarService(ICarRepository carRepository,
-                          ICustomerRepository customerRepository)
+        public CarService(ICarRepository carRepository, ICustomerRepository customerRepository)
         {
-            _carRepository = carRepository;
+            _carRepository      = carRepository;
             _customerRepository = customerRepository;
         }
 
         public async Task AddCar(long userId, CreateCarRequest request)
         {
-            var customer = await _customerRepository.GetByUserId(userId);
-
-            if (customer == null)
-                throw new NotFoundException("Customer profile not found");
+            var customer = await _customerRepository.GetByUserId(userId)
+                ?? throw new NotFoundException("Customer profile not found");
 
             var car = new Car
             {
-                CustomerId = customer.CustomerId,
-                Make = request.Make,
-                Model = request.Model,
-                Color = request.Color,
+                CustomerId  = customer.CustomerId,
+                Make        = request.Make,
+                Model       = request.Model,
+                Color       = request.Color,
                 PlateNumber = request.PlateNumber,
-                ImageUrl = request.ImageUrl
+                ImageUrl    = request.ImageUrl ?? string.Empty,
+                IsActive    = true,
+                CreatedAt   = DateTime.UtcNow
             };
 
             await _carRepository.AddCar(car);
@@ -43,22 +38,29 @@ namespace GreenWash.Services
 
         public async Task<List<Car>> GetMyCars(long userId)
         {
-            var customer = await _customerRepository.GetByUserId(userId);
+            var customer = await _customerRepository.GetByUserId(userId)
+                ?? throw new NotFoundException("Customer profile not found");
 
-            if (customer == null)
-                throw new NotFoundException("Customer profile not found");
-
-            return await _carRepository.GetCarsByCustomerId(customer.CustomerId);
+            var cars = await _carRepository.GetCarsByCustomerId(customer.CustomerId);
+            return cars.Where(c => c.IsActive).ToList();   // only return active cars
         }
 
         public async Task DeleteCar(long carId, long userId)
         {
-            var car = await _carRepository.GetCarById(carId);
+            var customer = await _customerRepository.GetByUserId(userId)
+                ?? throw new NotFoundException("Customer profile not found");
 
-            if (car == null)
-                throw new NotFoundException("Car not found");
+            var car = await _carRepository.GetCarById(carId)
+                ?? throw new NotFoundException("Car not found");
 
-            await _carRepository.DeleteCar(car);
+            // Ownership check — a customer can only delete their own car
+            if (car.CustomerId != customer.CustomerId)
+                throw new UnauthorizedException("This car does not belong to you");
+
+            // Soft-delete: mark inactive rather than hard-delete
+            // (preserves historical order data that references this car)
+            car.IsActive = false;
+            await _carRepository.UpdateCar(car);
         }
     }
 }

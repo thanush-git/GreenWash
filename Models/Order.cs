@@ -19,6 +19,7 @@ namespace GreenWash.Models
         public decimal TotalAmount { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsPaid { get; set; } = false;
+        public long? PromoCodeId { get; set; }
         public ICollection<OrderAddOn> AddOns { get; set; } = new List<OrderAddOn>();
     }
 }
