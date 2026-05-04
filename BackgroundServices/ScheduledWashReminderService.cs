@@ -6,10 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GreenWash.BackgroundServices
 {
-    /// <summary>
     /// Runs every 10 minutes, finds orders scheduled within the next 2 hours
-    /// that haven't been reminded yet, and sends the customer a reminder email.
-    /// </summary>
     public class ScheduledWashReminderService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
@@ -18,8 +15,7 @@ namespace GreenWash.BackgroundServices
         // How often the background loop ticks
         private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(10);
 
-        // The reminder window — send when wash is between 2h 10m and 2h 0m away
-        // (the 10 min buffer prevents double-sending across ticks)
+        // The reminder window
         private static readonly TimeSpan ReminderWindowMax = TimeSpan.FromMinutes(130);
         private static readonly TimeSpan ReminderWindowMin = TimeSpan.FromMinutes(120);
 

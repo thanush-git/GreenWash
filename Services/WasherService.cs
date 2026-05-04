@@ -1,42 +1,25 @@
-using GreenWash.DAL;
-using GreenWash.Data;
 using GreenWash.DTO;
 using GreenWash.Exceptions;
 using GreenWash.Interfaces;
 using GreenWash.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace GreenWash.Services
 {
     public class WasherService : IWasherService
     {
         private readonly IOrderRepository _orderRepository;
-        private readonly IAdminWasherRepository _washerRepository;
-        private readonly GreenWashDbContext _context;
+        private readonly IAdminRepository _washerRepository;
         private readonly IEmailService _email;
 
         public WasherService(
             IOrderRepository orderRepository,
-            IAdminWasherRepository washerRepository,
-            GreenWashDbContext context,
+            IAdminRepository washerRepository,
             IEmailService email)
         {
             _orderRepository = orderRepository;
             _washerRepository = washerRepository;
-            _context = context;
             _email = email;
         }
-
-        private async Task<(string email, string firstName)> GetCustomerContactAsync(long customerId)
-        {
-            var profile = await _context.CustomerProfiles
-                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
-            if (profile == null) return ("", "Customer");
-            var user = await _context.Users.FindAsync(profile.UserId);
-            return (user?.Email ?? "", profile.FirstName);
-        }
-
-        // ── Single action handler replacing accept / decline / start / complete ──
 
         public async Task HandleOrderActionAsync(long orderId, long washerId, string action)
         {
@@ -53,9 +36,9 @@ namespace GreenWash.Services
                     order.Status = OrderStatus.Accepted;
                     await _orderRepository.UpdateAsync(order);
 
-                    var washer = await _washerRepository.GetWasherByIdAsync(washerId);
+                    var washer = await _washerRepository.GetWasherProfileByIdAsync(washerId);
                     var washerName = washer != null ? $"{washer.FirstName} {washer.LastName}" : "your washer";
-                    var (acceptEmail, acceptName) = await GetCustomerContactAsync(order.CustomerId);
+                    var (acceptEmail, acceptName) = await _email.GetCustomerContactAsync(order.CustomerId);
                     if (!string.IsNullOrEmpty(acceptEmail))
                     {
                         var (s, h) = EmailTemplates.OrderAccepted(acceptName, order.OrderId, washerName, order.ServiceAddress);
@@ -73,7 +56,7 @@ namespace GreenWash.Services
                     order.WasherId = null;
                     await _orderRepository.UpdateAsync(order);
 
-                    var (declineEmail, declineName) = await GetCustomerContactAsync(order.CustomerId);
+                    var (declineEmail, declineName) = await _email.GetCustomerContactAsync(order.CustomerId);
                     if (!string.IsNullOrEmpty(declineEmail))
                     {
                         var (s, h) = EmailTemplates.OrderDeclined(declineName, order.OrderId);
@@ -90,7 +73,7 @@ namespace GreenWash.Services
                     order.Status = OrderStatus.InProgress;
                     await _orderRepository.UpdateAsync(order);
 
-                    var (startEmail, startName) = await GetCustomerContactAsync(order.CustomerId);
+                    var (startEmail, startName) = await _email.GetCustomerContactAsync(order.CustomerId);
                     if (!string.IsNullOrEmpty(startEmail))
                     {
                         var (s, h) = EmailTemplates.WashStarted(startName, order.OrderId, order.ServiceAddress);
@@ -107,14 +90,14 @@ namespace GreenWash.Services
                     order.Status = OrderStatus.Completed;
                     await _orderRepository.UpdateAsync(order);
 
-                    var washerProfile = await _washerRepository.GetWasherByIdAsync(washerId);
+                    var washerProfile = await _washerRepository.GetWasherProfileByIdAsync(washerId);
                     if (washerProfile != null)
                     {
                         washerProfile.TotalWashes++;
-                        await _washerRepository.UpdateWasherAsync(washerProfile);
+                        await _washerRepository.UpdateWasherProfileAsync(washerProfile);
                     }
 
-                    var (completeEmail, completeName) = await GetCustomerContactAsync(order.CustomerId);
+                    var (completeEmail, completeName) = await _email.GetCustomerContactAsync(order.CustomerId);
                     if (!string.IsNullOrEmpty(completeEmail))
                     {
                         var (s, h) = EmailTemplates.WashCompleted(completeName, order.OrderId, order.TotalAmount);
@@ -127,26 +110,23 @@ namespace GreenWash.Services
             }
         }
 
-        // ── GetAvailableOrdersAsync / GetWasherOrdersAsync ─────────────────────────
-
         public async Task<List<Order>> GetAvailableOrdersAsync()
             => await _orderRepository.GetAvailableOrdersAsync();
 
         public async Task<List<Order>> GetWasherOrdersAsync(long washerId)
             => await _orderRepository.GetOrdersForWasherAsync(washerId);
 
-        // ── UpdateWasherAsync ──────────────────────────────────────────────────────
-
-        public async Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasher dto)
+        public async Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasherRequest dto)
         {
-            var washer = await _washerRepository.GetWasherByIdAsync(washerId)
+            var washer = await _washerRepository.GetWasherProfileByIdAsync(washerId)
                 ?? throw new NotFoundException("Washer not found");
 
             washer.FirstName = dto.FirstName;
             washer.LastName = dto.LastName;
             washer.Phone = dto.Phone;
 
-            return await _washerRepository.UpdateWasherAsync(washer);
+            await _washerRepository.UpdateWasherProfileAsync(washer);
+            return washer;
         }
     }
 }

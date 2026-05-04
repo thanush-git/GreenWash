@@ -7,12 +7,24 @@ namespace GreenWash.Services
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _config;
+        private readonly ICustomerRepository _customer;
         private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IConfiguration config, ILogger<EmailService> logger)
+        public EmailService
+        (IConfiguration config, ICustomerRepository customer, ILogger<EmailService> logger)
         {
             _config = config;
+            _customer = customer;
             _logger = logger;
+        }
+
+        public async Task<(string email, string firstName)> GetCustomerContactAsync(long customerId)
+        {
+            var profile = await _customer.GetByCustomerId(customerId);
+            if (profile == null) return ("", "Customer");
+
+            var user = await _customer.GetUserById(profile.UserId);
+            return (user?.Email ?? "", profile.FirstName);
         }
 
         public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody)
@@ -45,7 +57,7 @@ namespace GreenWash.Services
             }
             catch (Exception ex)
             {
-                // Never let a failed email crash the business operation
+                // catching to not let the application crash
                 _logger.LogError(ex, "Failed to send email to {Email} — {Subject}", toEmail, subject);
             }
         }

@@ -13,28 +13,31 @@ namespace GreenWash.Controllers
     {
         private readonly IWasherService _washerService;
         private readonly IInvoiceService _invoiceService;
+        private readonly IRatingService _ratingService;
         public WasherController(
             IWasherService washerService,
-            IInvoiceService invoiceService
+            IInvoiceService invoiceService,
+            IRatingService ratingService
             )
         {
             _washerService = washerService;
             _invoiceService = invoiceService;
+            _ratingService = ratingService;
         }
 
         private long GetWasherId() =>
             long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        // ── PROFILE ────────────────────────────────────────────────────────────
+        // PROFILE
 
         [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile(UpdateWasher dto)
+        public async Task<IActionResult> UpdateProfile(UpdateWasherRequest dto)
         {
             var result = await _washerService.UpdateWasherAsync(GetWasherId(), dto);
             return Ok(result);
         }
 
-        // ── ORDERS ─────────────────────────────────────────────────────────────
+        // ORDERS
 
         [HttpGet("orders/available")]
         public async Task<IActionResult> GetAvailableOrders()
@@ -50,10 +53,8 @@ namespace GreenWash.Controllers
             return Ok(orders);
         }
 
-        /// <summary>
         /// Unified order action endpoint.
         /// Body: { "action": "accept" | "decline" | "start" | "complete" }
-        /// </summary>
         [HttpPatch("orders/{orderId}")]
         public async Task<IActionResult> HandleOrderAction(long orderId, WasherOrderAction dto)
         {
@@ -61,7 +62,7 @@ namespace GreenWash.Controllers
             return Ok(new { message = $"Order {dto.Action}ed successfully" });
         }
 
-        // ── INVOICES ───────────────────────────────────────────────────────────
+        // INVOICES 
 
         [HttpPost("orders/{orderId}/invoice")]
         public async Task<IActionResult> GenerateInvoice(long orderId, GenerateInvoice dto)
@@ -71,11 +72,13 @@ namespace GreenWash.Controllers
             return Ok(invoice);
         }
 
-        // [HttpGet("orders/{orderId}/invoice")]
-        // public async Task<IActionResult> GetInvoice(long orderId)
-        // {
-        //     var invoice = await _invoiceService.GetInvoiceAsync(orderId);
-        //     return Ok(invoice);
-        // }
+        // Rate Customers
+        [HttpPost("rate-customer")]
+        public async Task<IActionResult> RateCustomer(SubmitRatingRequest request)
+        {
+            var washerId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var result = await _ratingService.SubmitRatingAsync(washerId, request);
+            return Ok(result);
+        }
     }
 }

@@ -1,9 +1,7 @@
 namespace GreenWash.Services
 {
-    /// <summary>
     /// Simple HTML email templates for GreenWash.
     /// Each method returns a (subject, htmlBody) tuple.
-    /// </summary>
     public static class EmailTemplates
     {
         private static string Wrap(string bodyHtml) => $@"<!DOCTYPE html>

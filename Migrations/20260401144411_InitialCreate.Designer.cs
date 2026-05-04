@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GreenWash.Migrations
 {
     [DbContext(typeof(GreenWashDbContext))]
-    [Migration("20260314140346_InitialCreate")]
+    [Migration("20260401144411_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -422,10 +422,10 @@ namespace GreenWash.Migrations
                         new
                         {
                             UserId = 1L,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedAt = new DateTime(2026, 4, 1, 14, 44, 11, 280, DateTimeKind.Utc).AddTicks(1064),
                             Email = "admin@greenwash.com",
                             IsActive = true,
-                            PasswordHash = "$2b$12$N6q4Rrfrke4V5SgyO8HKk.xh9dnK7CLjW8jOdgfUXlFmJ2rdMqKme",
+                            PasswordHash = "$2a$11$2iMf/1QdwZPXvgheVackletxBO2UrxMJmlZdeIX1Pxgs1habbZvmi",
                             Role = 2
                         });
                 });

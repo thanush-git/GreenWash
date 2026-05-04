@@ -10,21 +10,19 @@ namespace GreenWash.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
-        private readonly IAdminWasherService _washerService;
         private readonly IAdminService _adminService;
 
-        public AdminController(IAdminWasherService washerService, IAdminService adminService)
+        public AdminController(IAdminService adminService)
         {
-            _washerService = washerService;
             _adminService = adminService;
         }
 
-        // ── WASHER MANAGEMENT ──────────────────────────────────────────────────────
+        // WASHER MANAGEMENT
 
         [HttpPost("washers")]
-        public async Task<IActionResult> AddWasher(CreateWasher dto)
+        public async Task<IActionResult> AddWasher(CreateWasherRequest dto)
         {
-            var washer = await _washerService.AddWasherAsync(dto);
+            var washer = await _adminService.AddWasherAsync(dto);
             return Ok(washer);
         }
 
@@ -36,16 +34,16 @@ namespace GreenWash.Controllers
         // }
 
         [HttpPut("washers/{id}")]
-        public async Task<IActionResult> UpdateWasher(long id, UpdateWasher dto)
+        public async Task<IActionResult> UpdateWasher(long id, UpdateWasherRequest dto)
         {
-            var washer = await _washerService.UpdateWasherAsync(id, dto);
+            var washer = await _adminService.UpdateWasherAsync(id, dto);
             return Ok(washer);
         }
 
         [HttpPatch("washers/{id}/status")]
-        public async Task<IActionResult> ToggleWasherStatus(long id, WasherStatus dto)
+        public async Task<IActionResult> ToggleWasherStatus(long id, ToggleStatusRequest dto)
         {
-            await _washerService.ToggleWasherStatusAsync(id, dto.IsActive);
+            await _adminService.ToggleWasherStatusAsync(id, dto.IsActive);
             return Ok("Washer status updated");
         }
 
@@ -56,7 +54,7 @@ namespace GreenWash.Controllers
             return Ok(ratings);
         }
 
-        // ── CUSTOMER MANAGEMENT ────────────────────────────────────────────────────
+        // CUSTOMER MANAGEMENT
 
         // [HttpGet("customers")]
         // public async Task<IActionResult> GetAllCustomers()
@@ -72,7 +70,7 @@ namespace GreenWash.Controllers
             return Ok("Customer status updated");
         }
 
-        // ── SERVICE PLANS ──────────────────────────────────────────────────────────
+        // SERVICE PLANS
 
         [HttpPost("service-plans")]
         public async Task<IActionResult> CreateServicePlan(CreateServicePlanRequest request)
@@ -102,7 +100,7 @@ namespace GreenWash.Controllers
             return Ok("Status updated");
         }
 
-        // ── ADD-ONS ────────────────────────────────────────────────────────────────
+        // ADD-ONS
 
         [HttpPost("addons")]
         public async Task<IActionResult> CreateAddOn(CreateAddOnRequest request)
@@ -132,7 +130,7 @@ namespace GreenWash.Controllers
             return Ok("Status updated");
         }
 
-        // ── PROMO CODES ────────────────────────────────────────────────────────────
+        // PROMO CODES
 
         [HttpPost("promo-codes")]
         public async Task<IActionResult> CreatePromoCode(CreatePromoCodeRequest request)
@@ -155,7 +153,7 @@ namespace GreenWash.Controllers
             return Ok(promo);
         }
 
-        // ── ORDER MANAGEMENT ───────────────────────────────────────────────────────
+        // ORDER MANAGEMENT
 
         [HttpGet("orders")]
         public async Task<IActionResult> GetAllOrders(

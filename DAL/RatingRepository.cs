@@ -22,23 +22,15 @@ namespace GreenWash.DAL
         }
 
         public async Task<List<Rating>> GetByOrderIdAsync(long orderId)
-        {
-            return await _context.Ratings
-                .Where(r => r.OrderId == orderId)
-                .ToListAsync();
-        }
-
+            => await _context.Ratings.Where(r => r.OrderId == orderId).ToListAsync();
+        
         public async Task<List<Rating>> GetByWasherIdAsync(long washerId)
-        {
-            return await _context.Ratings
-                .Where(r => r.RevieweeId == washerId)
-                .ToListAsync();
-        }
+            => await _context.Ratings.Where(r => r.RevieweeId == washerId).ToListAsync();
 
         public async Task<bool> ExistsAsync(long orderId, long reviewerId)
-        {
-            return await _context.Ratings
-                .AnyAsync(r => r.OrderId == orderId && r.ReviewerId == reviewerId);
-        }
+            => await _context.Ratings.AnyAsync(r => r.OrderId == orderId && r.ReviewerId == reviewerId);
+
+        public async Task SaveChangesAsync()
+            => await _context.SaveChangesAsync();
     }
 }

@@ -24,6 +24,17 @@ namespace GreenWash.DAL
                 .FirstOrDefaultAsync(c => c.UserId == userId);
         }
 
+        public async Task<CustomerProfile?> GetByCustomerId(long customerId)
+        {
+            return await _context.CustomerProfiles
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+        }
+
+        public async Task<User?> GetUserById(long userId)
+        {
+            return await _context.Users.FindAsync(userId);
+        }
+
         public async Task UpdateCustomerProfile(CustomerProfile profile)
         {
             _context.CustomerProfiles.Update(profile);

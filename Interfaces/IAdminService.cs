@@ -28,6 +28,9 @@ namespace GreenWash.Interfaces
         Task<List<Rating>> GetCustomerRatingsAsync(long customerId);
 
         // Washers
+        Task<WasherProfile> AddWasherAsync(CreateWasherRequest dto);
+        Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasherRequest dto);
+        Task ToggleWasherStatusAsync(long washerId, bool isActive);
         Task<List<WasherProfile>> GetAllWashersAsync();
         Task<List<Rating>> GetWasherRatingsAsync(long washerId);
 

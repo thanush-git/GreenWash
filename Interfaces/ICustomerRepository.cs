@@ -9,6 +9,8 @@ namespace GreenWash.Interfaces
     public interface ICustomerRepository
     {
         Task<CustomerProfile?> GetByUserId(long userId);
+        Task<CustomerProfile?> GetByCustomerId(long customerId);
+        Task<User?> GetUserById(long userId);
         Task UpdateCustomerProfile(CustomerProfile profile);
     }
 }

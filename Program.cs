@@ -23,17 +23,12 @@ builder.Services.AddDbContext<GreenWashDbContext>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICarService, CarService>();
-builder.Services.AddScoped<IAddPaymentMethodService, AddPaymentMethodService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<IAdminWasherService, AdminWasherService>();
 builder.Services.AddScoped<IWasherService, WasherService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-
-
-// Email
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Background Services
@@ -43,15 +38,14 @@ builder.Services.AddHostedService<ScheduledWashReminderService>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ICarRepository, CarRepository>();
-builder.Services.AddScoped<IAddPaymentMethodRepository, AddPaymentMethodRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IAdminWasherRepository, AdminWasherRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IRatingRepository, RatingRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -97,7 +91,7 @@ builder.Services.AddCors(options =>
         });
 });
 
-//JWT Authorization
+// JWT Authorization
 var jwtKey = builder.Configuration["Jwt:Key"];
 
 builder.Services.AddAuthentication(options =>
@@ -132,32 +126,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
-
 app.UseAuthorization();
-
 app.UseMiddleware<GlobalExceptionMiddleware>();
-
 app.MapControllers();
 
-// Public leaderboard endpoint — no authentication required
-app.MapGet("/api/leaderboard", async (GreenWash.Data.GreenWashDbContext db) =>
-{
-    const double gallonsPerWash = 3.5;
-    var washers = await db.WasherProfiles.ToListAsync();
-    var result = washers
-        .OrderByDescending(w => w.TotalWashes)
-        .Select(w => new
-        {
-            w.WasherId,
-            w.FirstName,
-            w.LastName,
-            w.TotalWashes,
-            w.AverageRating,
-            GallonsSaved = Math.Round(w.TotalWashes * gallonsPerWash, 2)
-        });
-    return Results.Ok(result);
-});
+
 
 app.Run();

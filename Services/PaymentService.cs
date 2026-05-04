@@ -1,74 +1,105 @@
-using GreenWash.Data;
 using GreenWash.DTO;
 using GreenWash.Exceptions;
 using GreenWash.Interfaces;
 using GreenWash.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace GreenWash.Services
 {
     public class PaymentService : IPaymentService
     {
-        private readonly GreenWashDbContext _context;
+        private readonly IPaymentRepository _repository;
+        private readonly ICustomerRepository _customer;
+        private readonly IOrderRepository _orderRepository;
         private readonly IEmailService _email;
 
-        public PaymentService(GreenWashDbContext context, IEmailService email)
+        public PaymentService(
+            IPaymentRepository repository,
+            ICustomerRepository customer,
+            IOrderRepository orderRepository,
+            IEmailService email)
         {
-            _context = context;
+            _repository = repository;
+            _customer = customer;
+            _orderRepository = orderRepository;
             _email = email;
         }
 
-        public async Task<string> ProcessPaymentAsync(ProcessPayment request, long userId)
+        // PAYMENT METHODS
+
+        public async Task<PaymentMethod> AddPaymentMethodAsync(long userId, AddPaymentMethod dto)
         {
-            // Resolve userId → customer profile
-            var profile = await _context.CustomerProfiles
-                .FirstOrDefaultAsync(c => c.UserId == userId)
+            var profile = await _customer.GetByUserId(userId)
                 ?? throw new NotFoundException("Customer profile not found");
 
-            var order = await _context.Orders
-                .FirstOrDefaultAsync(o => o.OrderId == request.OrderId && o.CustomerId == profile.CustomerId)
+            if (dto.CardNumber.Length < 16)
+                throw new BadRequestException("Invalid card number");
+
+            if (dto.IsDefault)
+                await _repository.ClearDefaultPaymentMethodsAsync(profile.CustomerId);
+
+            var payment = new PaymentMethod
+            {
+                CustomerId     = profile.CustomerId,
+                CardHolderName = dto.CardHolderName,
+                CardNumber     = dto.CardNumber,
+                ExpiryMonth    = dto.ExpiryMonth,
+                ExpiryYear     = dto.ExpiryYear,
+                IsDefault      = dto.IsDefault,
+                CreatedAt      = DateTime.UtcNow
+            };
+
+            return await _repository.AddPaymentMethodAsync(payment);
+        }
+
+        public async Task<List<PaymentMethod>> GetCustomerPaymentMethodsAsync(long userId)
+        {
+            var profile = await _customer.GetByUserId(userId)
+                ?? throw new NotFoundException("Customer profile not found");
+
+            return await _repository.GetPaymentMethodsByCustomerIdAsync(profile.CustomerId);
+        }
+
+        // PROCESS PAYMENT
+
+        public async Task<string> ProcessPaymentAsync(ProcessPayment request, long userId)
+        {
+            var profile = await _customer.GetByUserId(userId)
+                ?? throw new NotFoundException("Customer profile not found");
+
+            var order = await _orderRepository.GetOrderForCustomerAsync(request.OrderId, profile.CustomerId)
                 ?? throw new NotFoundException("Order not found");
 
             if (order.IsPaid)
                 throw new BadRequestException("Order already paid");
 
-            var paymentMethod = await _context.PaymentMethods
-                .FirstOrDefaultAsync(p => p.PaymentMethodId == request.PaymentMethodId
-                                       && p.CustomerId == profile.CustomerId)
+            var paymentMethod = await _repository.GetPaymentMethodAsync(
+                request.PaymentMethodId, profile.CustomerId)
                 ?? throw new BadRequestException("Invalid payment method");
 
-            // ── Optional promo code applied at payment time ────────────────────
-            if (!string.IsNullOrWhiteSpace(request.PromoCode))
+            if (!string.IsNullOrWhiteSpace(request.PromoCode) && order.PromoCodeId == null)
             {
-                // Already has a promo applied from a previous attempt — skip re-applying
-                if (order.PromoCodeId == null)
-                {
-                    var promo = await _context.PromoCodes
-                        .FirstOrDefaultAsync(p => p.Code == request.PromoCode && p.IsActive);
+                var promo = await _repository.GetActivePromoCodeAsync(request.PromoCode);
 
-                    if (promo == null || promo.ExpiryDate < DateTime.UtcNow || promo.UsageCount >= promo.UsageLimit)
-                        throw new BadRequestException(
-                            "Promo code is invalid or expired. Please use a valid code or leave it blank to pay the full amount.");
+                if (promo == null || promo.ExpiryDate < DateTime.Now ||
+                    promo.UsageCount >= promo.UsageLimit)
+                    throw new BadRequestException(
+                        "Promo code is invalid or expired. Please use a valid code or leave it blank.");
 
-                    // Apply discount
-                    if (promo.DiscountType.Equals("Percentage", StringComparison.OrdinalIgnoreCase))
-                        order.TotalAmount = Math.Round(order.TotalAmount * (1 - promo.DiscountValue / 100), 2);
-                    else
-                        order.TotalAmount = Math.Max(0, Math.Round(order.TotalAmount - promo.DiscountValue, 2));
+                if (promo.DiscountType.Equals("Percentage", StringComparison.OrdinalIgnoreCase))
+                    order.TotalAmount = Math.Round(order.TotalAmount * (1 - promo.DiscountValue / 100), 2);
+                else
+                    order.TotalAmount = Math.Max(0, Math.Round(order.TotalAmount - promo.DiscountValue, 2));
 
-                    order.PromoCodeId = promo.PromoCodeId;
-                    promo.UsageCount++;
-                }
+                order.PromoCodeId = promo.PromoCodeId;
+                promo.UsageCount++;
             }
 
-            // ── Process payment ────────────────────────────────────────────────
-            await Task.Delay(200); // simulate gateway
+            await Task.Delay(200); // simulated processing
 
             order.IsPaid = true;
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
 
-            // ── Confirmation email ─────────────────────────────────────────────
-            var user = await _context.Users.FindAsync(profile.UserId);
+            var user = await _customer.GetUserById(profile.UserId);
             if (user != null && !string.IsNullOrEmpty(user.Email))
             {
                 var (subject, html) = EmailTemplates.PaymentConfirmed(

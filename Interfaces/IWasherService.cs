@@ -8,6 +8,6 @@ namespace GreenWash.Interfaces
         Task HandleOrderActionAsync(long orderId, long washerId, string action);
         Task<List<Order>> GetAvailableOrdersAsync();
         Task<List<Order>> GetWasherOrdersAsync(long washerId);
-        Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasher dto);
+        Task<WasherProfile> UpdateWasherAsync(long washerId, UpdateWasherRequest dto);
     }
 }

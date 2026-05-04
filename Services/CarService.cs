@@ -7,12 +7,12 @@ namespace GreenWash.Services
 {
     public class CarService : ICarService
     {
-        private readonly ICarRepository      _carRepository;
+        private readonly ICarRepository _carRepository;
         private readonly ICustomerRepository _customerRepository;
 
         public CarService(ICarRepository carRepository, ICustomerRepository customerRepository)
         {
-            _carRepository      = carRepository;
+            _carRepository = carRepository;
             _customerRepository = customerRepository;
         }
 
@@ -53,14 +53,11 @@ namespace GreenWash.Services
             var car = await _carRepository.GetCarById(carId)
                 ?? throw new NotFoundException("Car not found");
 
-            // Ownership check — a customer can only delete their own car
+            // a customer can delete their own car not others
             if (car.CustomerId != customer.CustomerId)
                 throw new UnauthorizedException("This car does not belong to you");
 
-            // Soft-delete: mark inactive rather than hard-delete
-            // (preserves historical order data that references this car)
-            car.IsActive = false;
-            await _carRepository.UpdateCar(car);
+            await _carRepository.DeleteCar(car);
         }
     }
 }

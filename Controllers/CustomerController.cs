@@ -15,7 +15,7 @@ namespace GreenWash.Controllers
         private readonly ICarService _carService;
         private readonly IOrderService _orderService;
         private readonly IPaymentService _paymentService;
-        private readonly IAddPaymentMethodService _paymentMethodService;
+        
         private readonly IInvoiceService _invoiceService;
         private readonly IRatingService _ratingService;
 
@@ -24,7 +24,6 @@ namespace GreenWash.Controllers
             ICarService carService,
             IOrderService orderService,
             IPaymentService paymentService,
-            IAddPaymentMethodService paymentMethodService,
             IInvoiceService invoiceService,
             IRatingService ratingService)
         {
@@ -32,7 +31,7 @@ namespace GreenWash.Controllers
             _carService = carService;
             _orderService = orderService;
             _paymentService = paymentService;
-            _paymentMethodService = paymentMethodService;
+            
             _invoiceService = invoiceService;
             _ratingService = ratingService;
         }
@@ -40,7 +39,7 @@ namespace GreenWash.Controllers
         private long GetUserId() =>
             long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        // ── PROFILE ────────────────────────────────────────────────────────────
+        // PROFILE 
 
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
@@ -56,7 +55,7 @@ namespace GreenWash.Controllers
             return Ok("Profile updated successfully");
         }
 
-        // ── CARS ───────────────────────────────────────────────────────────────
+        // CARS
 
         [HttpPost("cars")]
         public async Task<IActionResult> AddCar(CreateCarRequest request)
@@ -79,7 +78,7 @@ namespace GreenWash.Controllers
         //     return Ok("Car deleted successfully");
         // }
 
-        // ── ORDERS ─────────────────────────────────────────────────────────────
+        // ORDERS
 
         [HttpPost("orders/wash-now")]
         public async Task<IActionResult> WashNow(WashNowRequest request)
@@ -109,31 +108,24 @@ namespace GreenWash.Controllers
             return Ok(orders);
         }
 
-        // [HttpDelete("orders/{id}")]
-        // public async Task<IActionResult> CancelOrder(long id)
-        // {
-        //     await _orderService.CancelOrderAsync(id, GetUserId());
-        //     return Ok("Order cancelled");
-        // }
-
-        // ── PAYMENT METHODS ────────────────────────────────────────────────────
+        // PAYMENT METHODS
 
         [HttpPost("payment-methods")]
         public async Task<IActionResult> AddPaymentMethod(AddPaymentMethod dto)
         {
-            var result = await _paymentMethodService.AddPaymentMethodAsync(GetUserId(), dto);
+            var result = await _paymentService.AddPaymentMethodAsync(GetUserId(), dto);
             return Ok(result);
         }
 
         // [HttpGet("payment-methods")]
         // public async Task<IActionResult> GetPaymentMethods()
         // {
-        //     var result = await _paymentMethodService.GetCustomerPaymentMethodsAsync(GetUserId());
+        //     var result = await _paymentService.GetCustomerPaymentMethodsAsync(GetUserId());
         //     return Ok(result);
         // }
 
-        // ── PAYMENT ────────────────────────────────────────────────────────────
-        // PromoCode is optional inside ProcessPayment — send it here to apply at checkout.
+        // PAYMENT
+        // PromoCode is optional inside ProcessPayment send it here to apply at checkout.
         // If the promo is invalid the payment will NOT be processed and an error is returned.
 
         [HttpPost("payments")]
@@ -143,7 +135,7 @@ namespace GreenWash.Controllers
             return Ok(result);
         }
 
-        // ── INVOICES ───────────────────────────────────────────────────────────
+        // INVOICES
 
         [HttpGet("orders/{orderId}/invoice")]
         public async Task<IActionResult> GetInvoice(long orderId)
@@ -152,7 +144,7 @@ namespace GreenWash.Controllers
             return Ok(invoice);
         }
 
-        // ── RATINGS ────────────────────────────────────────────────────────────
+        // RATINGS
 
         [HttpPost("ratings")]
         public async Task<IActionResult> SubmitRating(SubmitRatingRequest request)

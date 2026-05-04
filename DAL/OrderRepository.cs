@@ -32,6 +32,12 @@ namespace GreenWash.DAL
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
         }
 
+        public async Task<Order?> GetOrderForCustomerAsync(long orderId, long customerId)
+        {
+            return await _context.Orders
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == customerId);
+        }
+
         public async Task<IEnumerable<Order>> GetByCustomerIdAsync(long customerId)
         {
             return await _context.Orders
@@ -53,6 +59,7 @@ namespace GreenWash.DAL
                        (o.Status == OrderStatus.Pending ||
                         o.Status == OrderStatus.Accepted ||
                         o.Status == OrderStatus.InProgress))
+                .Include(o => o.AddOns) 
                 .ToListAsync();
         }
 
@@ -62,7 +69,37 @@ namespace GreenWash.DAL
                 .Where(o => o.CustomerId == customerId &&
                        (o.Status == OrderStatus.Completed ||
                         o.Status == OrderStatus.Cancelled))
+                .Include(o => o.AddOns) 
                 .ToListAsync();
+        }
+
+        // Helpers
+        public async Task<ServicePlan?> GetActiveServicePlanAsync(long servicePlanId)
+        {
+            return await _context.ServicePlans
+                .FirstOrDefaultAsync(s => s.ServicePlanId == servicePlanId && s.IsActive);
+        }
+
+        public async Task<List<AddOn>> GetAddOnsByIdsAsync(List<long> addOnIds)
+        {
+            return await _context.AddOns
+                .Where(a => addOnIds.Contains(a.AddOnId))
+                .ToListAsync();
+        }
+
+        //Order total and addon-builders helpers
+        public decimal CalculateTotal(ServicePlan plan, List<AddOn> addOns)
+        {
+            return plan.BasePrice + addOns.Sum(a => a.Price);
+        }
+
+        public IEnumerable<OrderAddOn> BuildOrderAddOns(List<AddOn> addOns)
+        {
+            return addOns.Select(a => new OrderAddOn
+            {
+                AddOnId = a.AddOnId,
+                PriceSnapshot = a.Price
+            });
         }
 
         //Washers
@@ -70,13 +107,15 @@ namespace GreenWash.DAL
         {
             return await _context.Orders
                 .Where(o => o.Status == OrderStatus.Pending && o.WasherId == null)
+                .Include(o => o.AddOns)
                 .ToListAsync();
         }
-        
+
         public async Task<List<Order>> GetOrdersForWasherAsync(long washerId)
         {
             return await _context.Orders
                 .Where(o => o.WasherId == washerId)
+                .Include(o => o.AddOns)
                 .ToListAsync();
         }
     }

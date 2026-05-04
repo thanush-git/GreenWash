@@ -8,5 +8,6 @@ namespace GreenWash.Interfaces
         Task<List<Rating>> GetByOrderIdAsync(long orderId);
         Task<List<Rating>> GetByWasherIdAsync(long washerId);
         Task<bool> ExistsAsync(long orderId, long reviewerId);
+        Task SaveChangesAsync();
     }
 }

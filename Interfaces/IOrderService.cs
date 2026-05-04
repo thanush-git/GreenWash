@@ -7,7 +7,6 @@ namespace GreenWash.Interfaces
     {
         Task<Order> CreateWashNowAsync(long userId, WashNowRequest request);
         Task<Order> ScheduleWashAsync(long userId, ScheduleWashRequest request);
-        Task CancelOrderAsync(long orderId, long userId);
         Task<List<Order>> GetCurrentOrdersAsync(long userId);
         Task<List<Order>> GetPastOrdersAsync(long userId);
     }

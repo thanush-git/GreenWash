@@ -39,9 +39,12 @@ namespace GreenWash.Services
             var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
             if (!emailRegex.IsMatch(request.Email))
                 throw new BadRequestException("Invalid email format");
+                
             if (request.Password.Length < 8)
                 throw new BadRequestException("Password must be at least 8 characters long");
-            if (request.Phone.Length != 10)
+
+            var phoneRegex = new Regex(@"^\d{10}$");
+            if(!phoneRegex.IsMatch(request.Phone))
                 throw new BadRequestException("Phone number must be exactly 10 digits");
 
             var existingUser = await _authRepository.GetUserByEmail(request.Email);
@@ -50,9 +53,9 @@ namespace GreenWash.Services
 
             var user = new User
             {
-                Email    = request.Email,
+                Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role     = UserRole.Customer,
+                Role = UserRole.Customer,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -69,7 +72,7 @@ namespace GreenWash.Services
 
             await _authRepository.AddCustomerProfile(profile);
 
-            // ── Welcome email ──────────────────────────────────────────────────────
+            // Sending welcome mail
             var (subject, html) = EmailTemplates.CustomerWelcome(request.FirstName);
             await _email.SendAsync(request.Email, request.FirstName, subject, html);
 
@@ -110,7 +113,7 @@ namespace GreenWash.Services
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
-            var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(

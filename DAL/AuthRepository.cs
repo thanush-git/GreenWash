@@ -20,13 +20,12 @@ namespace GreenWash.DAL
 
         public async Task<User> GetUserByEmail(string email)
         {
-            return await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task AddUser(User user)
         {
-            _context.Users.Add(user);
+            _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
         }
         

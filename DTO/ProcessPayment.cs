@@ -4,6 +4,6 @@ namespace GreenWash.DTO
     {
         public long OrderId { get; set; }
         public int PaymentMethodId { get; set; }
-        public string? PromoCode { get; set; }  // optional — applied at payment time
+        public string? PromoCode { get; set; }  // optional - applied at payment time
     }
 }

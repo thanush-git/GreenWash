@@ -34,19 +34,16 @@ namespace GreenWash.Data
                 .HasForeignKey(a => a.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ── Seed default admin ─────────────────────────────────────────────────
+            // seeded admin 
             // Default credentials: admin@greenwash.com / Admin@1234
-            // The hash below is a fixed BCrypt hash (cost 12) of "Admin@1234".
-            // To use a different password, replace this hash with a new one generated
-            // via: BCrypt.Net.BCrypt.HashPassword("YourNewPassword")
             modelBuilder.Entity<User>().HasData(new User
             {
                 UserId = 1,
                 Email = "admin@greenwash.com",
-                PasswordHash = "$2b$12$N6q4Rrfrke4V5SgyO8HKk.xh9dnK7CLjW8jOdgfUXlFmJ2rdMqKme",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@1234"),
                 Role = UserRole.Admin,
                 IsActive = true,
-                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                CreatedAt = DateTime.UtcNow
             });
         }
     }

@@ -1,29 +1,24 @@
-using GreenWash.Data;
 using GreenWash.DTO;
 using GreenWash.Exceptions;
 using GreenWash.Interfaces;
 using GreenWash.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace GreenWash.Services
 {
     public class InvoiceService : IInvoiceService
     {
         private readonly IInvoiceRepository _invoiceRepository;
-        private readonly IOrderRepository   _orderRepository;
-        private readonly GreenWashDbContext  _context;
-        private readonly IEmailService       _email;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IEmailService  _email;
 
         public InvoiceService(
             IInvoiceRepository invoiceRepository,
             IOrderRepository orderRepository,
-            GreenWashDbContext context,
             IEmailService email)
         {
             _invoiceRepository = invoiceRepository;
-            _orderRepository   = orderRepository;
-            _context           = context;
-            _email             = email;
+            _orderRepository = orderRepository;
+            _email = email;
         }
 
         public async Task<Invoice> GenerateInvoiceAsync(GenerateInvoice dto)
@@ -43,20 +38,13 @@ namespace GreenWash.Services
 
             var saved = await _invoiceRepository.CreateInvoiceAsync(invoice);
 
-            // ── Invoice email to customer ──────────────────────────────────────
-            var profile = await _context.CustomerProfiles
-                .FirstOrDefaultAsync(c => c.CustomerId == order.CustomerId);
-
-            if (profile != null)
+            var (email, name) = await _email.GetCustomerContactAsync(order.CustomerId);
+            if (!string.IsNullOrEmpty(email))
             {
-                var user = await _context.Users.FindAsync(profile.UserId);
-                if (user != null && !string.IsNullOrEmpty(user.Email))
-                {
-                    var (subject, html) = EmailTemplates.InvoiceGenerated(
-                        profile.FirstName, order.OrderId, saved.InvoiceId,
-                        order.TotalAmount, dto.AfterWashImageUrl, saved.GeneratedAt);
-                    await _email.SendAsync(user.Email, profile.FirstName, subject, html);
-                }
+                var (subject, html) = EmailTemplates.InvoiceGenerated(
+                    name, order.OrderId, saved.InvoiceId,
+                    order.TotalAmount, dto.AfterWashImageUrl, saved.GeneratedAt);
+                await _email.SendAsync(email, name, subject, html);
             }
 
             return saved;
